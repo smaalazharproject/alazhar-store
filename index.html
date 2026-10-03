@@ -4,12 +4,33 @@
 .plink:hover{color:var(--acc)}
 .dimg{aspect-ratio:4/3;border-radius:14px;overflow:hidden;background:var(--soft);display:grid;place-items:center;font-size:80px;margin-bottom:14px}
 .dimg img{width:100%;height:100%;object-fit:cover}
+.banner{margin:20px 0 8px;border-radius:20px;overflow:hidden;box-shadow:0 18px 40px -22px rgba(16,24,40,.5)}
+.banner img{display:block;width:100%;height:auto}
+@media (max-width:700px){
+.wrap{padding:0 12px}
+.nav .wrap{height:56px}
+.banner{margin:12px 0 4px;border-radius:14px}
+.search{flex:1 0 100%}
+.chip{padding:5px 12px;font-size:13px}
+.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding-bottom:40px}
+.prod{border-radius:12px}
+.prod .img,.prod:hover .img{aspect-ratio:1/1;font-size:44px}
+.prod .b{padding:8px 10px 10px;gap:2px}
+.prod .cat{font-size:11px}
+.prod h3{font-size:13px!important;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.prod .desc{display:none}
+.prod .badge{font-size:11px;padding:1px 8px;align-self:flex-start}
+.prod .price{font-size:14px;font-weight:700}
+.prod .row{flex-direction:column;align-items:stretch;gap:6px;padding-top:6px}
+.prod .row .btn{width:100%;padding:6px 0;font-size:13px}
+.prod:hover{transform:none}
+}
 </style></head>
 <body>
 <nav class="nav"><div class="wrap"><div class="logo brand"><i></i></div><div class="sp"></div>
 <button class="btn sm" onclick="drawer(true)">Keranjang<span class="cartn" id="cn">0</span></button></div></nav>
 <div class="wrap">
-<div class="hero"><h1>Kreatif Berkarya, Menginspirasi Sesama</h1><p>Pilih produk, masukkan ke keranjang, lalu pesan lewat WhatsApp.</p><button class="btn" onclick="$('cari').focus()">Cari produk</button></div>
+<div class="banner"><picture><source media="(max-width:700px)" srcset="images/banner-mobile.jpg"><img src="images/banner.jpg" alt="Project Siswa SMA Al Azhar Plus: Islamic, entrepreneurship and leadership" onerror="this.closest('.banner').style.display='none'"></picture></div>
 <div class="tools" id="cats"><input class="search" id="cari" placeholder="Cari nama produk" aria-label="Cari produk"></div>
 <div class="grid" id="grid"></div></div>
 <div class="modal" id="dm" role="dialog" aria-modal="true" aria-labelledby="dt"><div class="card" id="dbody"></div></div>

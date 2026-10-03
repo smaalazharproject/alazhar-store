@@ -46,16 +46,21 @@ function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clear
 function api(p,o={}){
   if(!G.owner)throw new Error('Isi owner dan repo GitHub di js/config.js.');
   if(!tok())throw new Error('Isi token GitHub di menu Pengaturan lebih dulu.');
-  return fetch(`https://api.github.com/repos/${G.owner}/${G.repo}/contents/${p}`+(o.method?'':'?ref='+G.branch),{...o,headers:{Authorization:'Bearer '+tok(),Accept:'application/vnd.github+json'}});
+  return fetch(`https://api.github.com/repos/${G.owner}/${G.repo}/contents/${p}`+(o.method?'':'?ref='+G.branch+'&t='+Date.now()),{...o,cache:'no-store',headers:{Authorization:'Bearer '+tok(),Accept:'application/vnd.github+json'}});
 }
 async function sha(p){const r=await api(p);return r.ok?(await r.json()).sha:undefined}
 async function put(p,content,message){
-  const r=await api(p,{method:'PUT',body:JSON.stringify({message,content,branch:G.branch,sha:await sha(p)})});
-  if(!r.ok)throw new Error(r.status===401||r.status===403?'Token GitHub ditolak. Pastikan izin Contents: Read and write.':(await r.json()).message);
+  for(let i=0;i<2;i++){
+    const r=await api(p,{method:'PUT',body:JSON.stringify({message,content,branch:G.branch,sha:await sha(p)})});
+    if(r.ok)return;
+    const e=await r.json().catch(()=>({}));
+    if(i===0&&/sha|does not match/i.test(e.message||''))continue;
+    throw new Error(r.status===401||r.status===403?'Token GitHub ditolak. Pastikan izin Contents: Read and write.':(e.message||'Gagal menyimpan ('+r.status+')'));
+  }
 }
 async function del(p){const s=await sha(p);if(s)await api(p,{method:'DELETE',body:JSON.stringify({message:'Hapus '+p,sha:s,branch:G.branch})})}
 async function readJSON(p,fb){
-  try{if(tok()&&G.owner){const r=await fetch(`https://api.github.com/repos/${G.owner}/${G.repo}/contents/${p}?ref=${G.branch}`,{headers:{Authorization:'Bearer '+tok(),Accept:'application/vnd.github.raw+json'}});if(r.ok)return await r.json()}}catch(e){}
+  try{if(tok()&&G.owner){const r=await fetch(`https://api.github.com/repos/${G.owner}/${G.repo}/contents/${p}?ref=${G.branch}&t=${Date.now()}`,{cache:'no-store',headers:{Authorization:'Bearer '+tok(),Accept:'application/vnd.github.raw+json'}});if(r.ok)return await r.json()}}catch(e){}
   return loadJSON(p,fb);
 }
 function shrink(f,max,type){return new Promise((ok,no)=>{const r=new FileReader();r.onerror=no;r.onload=()=>{const im=new Image();im.onerror=no;im.onload=()=>{

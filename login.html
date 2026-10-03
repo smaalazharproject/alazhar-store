@@ -1,0 +1,29 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><title>Masuk</title></head>
+<body data-t="Masuk">
+<div class="auth"><div class="side"><div class="logo brand"><i></i></div>
+<div><h2>Kelola toko dari satu tempat.</h2><p style="margin-top:14px">Tambah produk, unggah foto, dan atur tampilan website.</p></div><small style="opacity:.6">Khusus admin toko</small></div>
+<div class="form"><div class="card"><h2 style="font-size:26px">Masuk ke dashboard</h2>
+<form id="lf" novalidate>
+<label for="em">Email</label><input id="em" type="email" autocomplete="username" placeholder="nama@toko.id">
+<label for="pw">Kata sandi</label><input id="pw" type="password" autocomplete="current-password">
+<div class="err" id="err" role="alert"></div>
+<button class="btn" id="go" style="width:100%;margin-top:6px">Masuk</button></form>
+<p style="text-align:center;margin:16px 0 0;font-size:14px"><a href="#" id="rs" style="color:var(--acc)">Lupa kata sandi?</a> &nbsp;·&nbsp; <a href="index.html" style="color:var(--acc)">Kembali ke toko</a></p>
+</div></div></div>
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,sendPasswordResetEmail}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+const auth=getAuth(initializeApp(CFG.firebase));
+onAuthStateChanged(auth,u=>{if(u)location.replace('dashboard.html')});
+loadJSON('data/settings.json',{nama:'Toko Saya'}).then(brand);
+const M={'auth/invalid-credential':'Email atau kata sandi salah. Periksa lagi lalu coba masuk.','auth/invalid-email':'Format email tidak valid.','auth/missing-password':'Isi kata sandi.','auth/too-many-requests':'Terlalu banyak percobaan. Tunggu beberapa menit lalu coba lagi.','auth/network-request-failed':'Tidak ada koneksi internet.','auth/invalid-api-key':'Konfigurasi Firebase belum diisi di js/config.js.','auth/operation-not-allowed':'Login email/kata sandi belum diaktifkan di Firebase.'};
+const fail=e=>{$('err').textContent=M[e.code]||'Gagal masuk. Coba lagi.'};
+$('lf').onsubmit=async e=>{e.preventDefault();$('err').textContent='';const m=$('em').value.trim(),w=$('pw').value;
+ if(!m||!w){$('err').textContent='Isi email dan kata sandi.';return}
+ $('go').disabled=true;$('go').textContent='Memproses…';
+ try{await signInWithEmailAndPassword(auth,m,w)}catch(x){fail(x)}
+ $('go').disabled=false;$('go').textContent='Masuk'};
+$('rs').onclick=async e=>{e.preventDefault();const m=$('em').value.trim();if(!m){$('err').textContent='Isi email dulu, lalu klik Lupa kata sandi.';return}
+ try{await sendPasswordResetEmail(auth,m);$('err').style.color='var(--ok)';$('err').textContent='Tautan reset dikirim ke '+m+'.'}catch(x){fail(x)}};
+</script></body></html>

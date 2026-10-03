@@ -1,0 +1,44 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><title>Toko Online</title></head>
+<body>
+<nav class="nav"><div class="wrap"><div class="logo brand"><i></i></div><div class="sp"></div>
+<a class="btn ghost sm" href="login.html">Masuk</a><button class="btn sm" onclick="drawer(true)">Keranjang<span class="cartn" id="cn">0</span></button></div></nav>
+<div class="wrap">
+<div class="hero"><h1>Barang harian dari pengrajin lokal.</h1><p>Pilih produk, masukkan ke keranjang, lalu pesan lewat WhatsApp.</p><button class="btn" onclick="$('cari').focus()">Cari produk</button></div>
+<div class="tools" id="cats"><input class="search" id="cari" placeholder="Cari nama produk" aria-label="Cari produk"></div>
+<div class="grid" id="grid"></div></div>
+<aside class="drawer" id="drawer" aria-label="Keranjang">
+<div style="display:flex;align-items:center"><h3>Keranjang</h3><div class="sp"></div><button class="btn ghost sm" onclick="drawer(false)">Tutup</button></div>
+<div class="list" id="clist"></div>
+<div style="display:flex;justify-content:space-between;font-weight:600"><span>Total</span><span id="ctot">Rp 0</span></div>
+<button class="btn" onclick="order()">Pesan via WhatsApp</button></aside>
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+let P=[],S={nama:'Toko Saya'},cart={},cat='Semua',q='';
+(async()=>{S=await loadJSON('data/settings.json',S);brand(S);P=await loadJSON('data/products.json',[]);renderStore()})();
+const pic=p=>p.img?`<img src="${esc(src(p.img))}" alt="${esc(p.n)}" loading="lazy">`:'📦';
+function renderStore(){
+  const cats=['Semua',...new Set(P.map(p=>p.c))];
+  $('cats').querySelectorAll('.chip').forEach(e=>e.remove());
+  cats.forEach(c=>{const b=document.createElement('button');b.className='chip'+(c===cat?' on':'');b.textContent=c;b.onclick=()=>{cat=c;renderStore()};$('cats').appendChild(b)});
+  const l=P.filter(p=>(cat==='Semua'||p.c===cat)&&p.n.toLowerCase().includes(q));
+  $('grid').innerHTML=l.length?l.map(p=>`<article class="prod"><div class="img" style="background:var(--soft)">${pic(p)}</div><div class="b"><span class="cat">${esc(p.c)}</span><h3 style="font-size:17px">${esc(p.n)}</h3>${p.d?`<p class="desc">${esc(p.d)}</p>`:''}${p.s===0?'<span class="badge b-bad">Habis</span>':p.s<=5?`<span class="badge b-warn">Sisa ${p.s}</span>`:''}<div class="row"><span class="price">${rp(p.p)}</span><button class="btn sm" ${p.s===0?'disabled':''} onclick="add(${p.id})">Tambah</button></div></div></article>`).join(''):'<p class="empty" style="grid-column:1/-1">Belum ada produk yang cocok. Coba kata kunci lain.</p>';
+  renderCart();
+}
+$('cari').oninput=e=>{q=e.target.value.toLowerCase();renderStore()};
+function add(id){const p=P.find(x=>x.id===id);if((cart[id]||0)<p.s){cart[id]=(cart[id]||0)+1;renderCart();drawer(true)}}
+function chg(id,d){const p=P.find(x=>x.id===id),n=(cart[id]||0)+d;if(n<=0)delete cart[id];else if(n<=p.s)cart[id]=n;renderCart()}
+const items=()=>Object.keys(cart).map(Number).map(i=>P.find(x=>x.id===i)).filter(Boolean);
+function renderCart(){
+  const l=items();$('cn').textContent=l.reduce((a,p)=>a+cart[p.id],0);
+  $('clist').innerHTML=l.length?l.map(p=>`<div class="li"><div class="t" style="background:var(--soft)">${pic(p)}</div><div><div style="font-weight:500">${esc(p.n)}</div><small style="color:var(--mute)">${rp(p.p)}</small></div><div class="qty"><button onclick="chg(${p.id},-1)" aria-label="Kurangi">−</button>${cart[p.id]}<button onclick="chg(${p.id},1)" aria-label="Tambah">+</button></div></div>`).join(''):'<p class="empty">Keranjang masih kosong. Tambahkan produk dari daftar.</p>';
+  $('ctot').textContent=rp(l.reduce((a,p)=>a+cart[p.id]*p.p,0));
+}
+function drawer(o){$('drawer').classList.toggle('on',o)}
+function order(){
+  const l=items();if(!l.length)return;
+  if(!S.wa){alert('Nomor WhatsApp toko belum diatur. Hubungi pemilik toko.');return}
+  const tot=l.reduce((a,p)=>a+cart[p.id]*p.p,0);
+  const txt='Halo, saya ingin memesan:\n'+l.map(p=>`- ${p.n} x${cart[p.id]} = ${rp(p.p*cart[p.id])}`).join('\n')+'\nTotal: '+rp(tot);
+  open('https://wa.me/'+S.wa+'?text='+encodeURIComponent(txt),'_blank');
+}
+</script></body></html>

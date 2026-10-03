@@ -1,0 +1,149 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><title>Dashboard</title></head>
+<body hidden data-t="Dashboard">
+<div class="dash">
+<nav class="sb"><div class="logo brand"><i></i></div><a class="on" data-p="ringkasan">Ringkasan</a><a data-p="produk">Produk</a><a data-p="pengaturan">Pengaturan</a></nav>
+<div class="main">
+<div class="top"><h2 id="ptitle">Ringkasan</h2><div class="sp"></div><small id="who" style="color:var(--mute)"></small><a class="btn ghost sm" href="index.html">Lihat toko</a><button class="btn sm" id="out">Keluar</button></div>
+
+<div class="pane on" id="p-ringkasan"><div class="stats" id="stats"></div><div class="card"><h3 style="font-size:17px;margin-bottom:10px">Stok menipis</h3><div id="low"></div></div></div>
+
+<div class="pane" id="p-produk"><div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn" onclick="openP()">Tambah produk</button></div><div class="card scroll" id="t-prods"></div></div>
+
+<div class="pane" id="p-pengaturan"><form class="card set" id="sf" onsubmit="return saveSet(event)" novalidate>
+<h3 style="font-size:18px">Identitas website</h3>
+<label for="lfile">Logo website</label>
+<div class="logo-row"><label class="logo-prev" id="lp" for="lfile"></label><input type="file" id="lfile" accept="image/*" hidden>
+<div><button type="button" class="btn ghost sm" id="rl">Hapus logo</button><small style="display:block;color:var(--mute);margin-top:6px">Gambar persegi, otomatis diperkecil.</small></div></div>
+<label for="sn">Nama website</label><input id="sn" placeholder="Nama toko Anda">
+<label for="sj">Judul website (tab browser)</label><input id="sj" placeholder="Nama toko — slogan singkat">
+<label for="sw">Nomor WhatsApp pemesanan</label><input id="sw" inputmode="numeric" placeholder="6281234567890">
+<h3 style="font-size:18px;margin-top:28px">Penyimpanan GitHub</h3>
+<label for="tk">Token GitHub</label><input id="tk" type="password" autocomplete="off">
+<small style="display:block;color:var(--mute);margin-top:6px">Token disimpan di browser ini saja, tidak dikirim ke tempat lain selain GitHub.</small>
+<button class="btn" id="ssv" style="margin-top:20px">Simpan pengaturan</button>
+</form></div>
+</div></div>
+
+<div class="modal" id="pm" role="dialog" aria-modal="true" aria-labelledby="pmt">
+<form class="card" onsubmit="return saveProd(event)" novalidate>
+<h3 id="pmt" style="font-size:20px">Tambah produk</h3>
+<label for="pfile">Foto produk</label><label class="drop" id="drop" for="pfile"></label><input type="file" id="pfile" accept="image/*" hidden>
+<label for="pn">Nama produk</label><input id="pn">
+<div class="row3"><div><label for="pc">Kategori</label><input id="pc" list="cl"><datalist id="cl"></datalist></div><div><label for="pp">Harga (Rp)</label><input id="pp" type="number" min="1"></div><div><label for="ps">Stok</label><input id="ps" type="number" min="0"></div></div>
+<label for="pd">Keterangan</label><textarea id="pd" rows="3" placeholder="Bahan, ukuran, atau cerita singkat produk"></textarea>
+<div class="err" id="perr" role="alert"></div>
+<div style="display:flex;gap:10px;justify-content:flex-end"><button type="button" class="btn ghost" onclick="closeP()">Batal</button><button class="btn" id="psv">Simpan produk</button></div>
+</form></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="js/config.js"></script><script src="js/common.js"></script>
+<script>
+let P=[],S={},ed=null,pimg=null,limg=null;
+const tok=()=>localStorage.getItem('gh_token')||'';
+const b64=t=>btoa(unescape(encodeURIComponent(t)));
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),4000)}
+/* ---- GitHub API ---- */
+function api(p,o={}){
+  if(!G.owner)throw new Error('Isi owner dan repo GitHub di js/config.js.');
+  if(!tok())throw new Error('Isi token GitHub di menu Pengaturan lebih dulu.');
+  return fetch(`https://api.github.com/repos/${G.owner}/${G.repo}/contents/${p}`+(o.method?'':'?ref='+G.branch),{...o,headers:{Authorization:'Bearer '+tok(),Accept:'application/vnd.github+json'}});
+}
+async function sha(p){const r=await api(p);return r.ok?(await r.json()).sha:undefined}
+async function put(p,content,message){
+  const r=await api(p,{method:'PUT',body:JSON.stringify({message,content,branch:G.branch,sha:await sha(p)})});
+  if(!r.ok)throw new Error(r.status===401||r.status===403?'Token GitHub ditolak. Pastikan izin Contents: Read and write.':(await r.json()).message);
+}
+async function del(p){const s=await sha(p);if(s)await api(p,{method:'DELETE',body:JSON.stringify({message:'Hapus '+p,sha:s,branch:G.branch})})}
+async function readJSON(p,fb){
+  try{if(tok()&&G.owner){const r=await fetch(`https://api.github.com/repos/${G.owner}/${G.repo}/contents/${p}?ref=${G.branch}`,{headers:{Authorization:'Bearer '+tok(),Accept:'application/vnd.github.raw+json'}});if(r.ok)return await r.json()}}catch(e){}
+  return loadJSON(p,fb);
+}
+function shrink(f,max,type){return new Promise((ok,no)=>{const r=new FileReader();r.onerror=no;r.onload=()=>{const im=new Image();im.onerror=no;im.onload=()=>{
+  const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas'),x=c.getContext('2d');
+  c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+  if(type==='image/jpeg'){x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height)}
+  x.drawImage(im,0,0,c.width,c.height);ok(c.toDataURL(type,.82))};im.src=r.result};r.readAsDataURL(f)})}
+/* ---- Tampilan ---- */
+const pic=p=>p.img?`<img src="${esc(src(p.img))}" alt="${esc(p.n)}">`:'📦';
+function renderAll(){
+  const low=P.filter(p=>p.s<=5);
+  $('stats').innerHTML=[['Total produk',P.length,'produk di toko'],['Total stok',P.reduce((a,p)=>a+p.s,0),'unit tersedia'],['Stok menipis',low.length,'perlu diisi ulang'],['Kategori',new Set(P.map(p=>p.c)).size,'kategori aktif']].map(s=>`<div class="card stat"><small>${s[0]}</small><b>${s[1]}</b><span>${s[2]}</span></div>`).join('');
+  $('low').innerHTML=low.length?low.map(p=>`<div class="li" style="margin-bottom:10px"><div class="t" style="background:var(--soft)">${pic(p)}</div><div>${esc(p.n)}</div><span class="badge ${p.s?'b-warn':'b-bad'}" style="margin-left:auto">${p.s?'Sisa '+p.s:'Habis'}</span></div>`).join(''):'<p class="empty">Semua stok aman.</p>';
+  $('t-prods').innerHTML=P.length?'<table><tr><th>Produk</th><th>Kategori</th><th>Harga</th><th>Stok</th><th></th></tr>'+P.map(p=>`<tr><td><div class="li"><div class="t" style="background:var(--soft)">${pic(p)}</div><div><div>${esc(p.n)}</div><small style="color:var(--mute)">${p.d?esc(p.d.slice(0,48)):'Belum ada keterangan'}</small></div></div></td><td>${esc(p.c)}</td><td>${rp(p.p)}</td><td><span class="badge ${p.s===0?'b-bad':p.s<=5?'b-warn':'b-ok'}">${p.s}</span></td><td><button class="btn ghost sm" onclick="openP(${p.id})">Ubah</button> <button class="btn ghost sm" onclick="delP(${p.id})">Hapus</button></td></tr>`).join('')+'</table>':'<p class="empty">Belum ada produk. Klik Tambah produk untuk memulai.</p>';
+}
+document.querySelectorAll('.sb a').forEach(a=>a.onclick=()=>{
+  document.querySelectorAll('.sb a').forEach(x=>x.classList.toggle('on',x===a));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+a.dataset.p));
+  $('ptitle').textContent=a.textContent;
+});
+/* ---- Produk ---- */
+function prev(){$('drop').innerHTML=pimg?`<img src="${esc(src(pimg))}" alt="Pratinjau foto produk">`:'<span>Pilih foto produk (JPG atau PNG)</span>'}
+function openP(id){
+  ed=id||null;const p=id?P.find(x=>x.id===id):{};
+  $('pmt').textContent=id?'Ubah produk':'Tambah produk';
+  $('cl').innerHTML=[...new Set(P.map(x=>x.c))].map(c=>`<option value="${esc(c)}">`).join('');
+  $('pn').value=p.n||'';$('pc').value=p.c||'';$('pp').value=p.p||'';$('ps').value=p.s??'';$('pd').value=p.d||'';
+  pimg=p.img||null;prev();$('perr').textContent='';$('pm').classList.add('on');$('pn').focus();
+}
+function closeP(){$('pm').classList.remove('on')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeP()});
+$('pfile').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  try{pimg=await shrink(f,800,'image/jpeg');prev();$('perr').textContent=''}catch{$('perr').textContent='Foto tidak bisa dibaca. Coba file lain.'}
+  e.target.value=''};
+async function saveProd(e){
+  e.preventDefault();
+  const n=$('pn').value.trim(),c=$('pc').value.trim()||'Lainnya',pr=+$('pp').value,st=+$('ps').value,d=$('pd').value.trim();
+  if(!n||!(pr>0)||$('ps').value===''||st<0){$('perr').textContent='Isi nama produk, harga di atas 0, dan stok.';return false}
+  $('psv').disabled=true;$('psv').textContent='Menyimpan…';
+  try{
+    const old=ed?P.find(x=>x.id===ed):null;let img=pimg||'';
+    if(img.startsWith('data:')){const path='images/p-'+Date.now()+'.jpg';await put(path,img.split(',')[1],'Tambah foto: '+n);loc[path]=img;img=path;if(old&&old.img)del(old.img).catch(()=>{})}
+    const obj={id:ed||Date.now(),n,c,p:pr,s:st,d,img};
+    const next=ed?P.map(x=>x.id===ed?obj:x):[obj,...P];
+    await put('data/products.json',b64(JSON.stringify(next,null,1)),'Simpan produk: '+n);
+    P=next;closeP();renderAll();toast('Produk tersimpan. Tampil di toko dalam beberapa menit.');
+  }catch(err){$('perr').textContent=err.message}
+  $('psv').disabled=false;$('psv').textContent='Simpan produk';return false;
+}
+async function delP(id){
+  const p=P.find(x=>x.id===id);if(!confirm('Hapus "'+p.n+'" dari toko?'))return;
+  try{await put('data/products.json',b64(JSON.stringify(P.filter(x=>x.id!==id),null,1)),'Hapus produk: '+p.n);
+    P=P.filter(x=>x.id!==id);renderAll();toast('Produk dihapus.');if(p.img)del(p.img).catch(()=>{})}
+  catch(err){toast(err.message)}
+}
+/* ---- Pengaturan ---- */
+function prevL(){$('lp').innerHTML=limg?`<img src="${esc(src(limg))}" alt="Logo">`:'Pilih logo'}
+function fillSet(){$('sn').value=S.nama||'';$('sj').value=S.judul||'';$('sw').value=S.wa||'';limg=S.logo||'';prevL();
+  $('tk').placeholder=tok()?'Tersimpan di browser ini (isi untuk mengganti)':'Tempel token GitHub'}
+$('lfile').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  try{limg=await shrink(f,256,'image/png');prevL()}catch{toast('Gambar tidak bisa dibaca. Coba file lain.')}e.target.value=''};
+$('rl').onclick=()=>{limg='';prevL()};
+async function saveSet(e){
+  e.preventDefault();const tk=$('tk').value.trim();if(tk){localStorage.setItem('gh_token',tk);$('tk').value=''}
+  const n=$('sn').value.trim();if(!n){toast('Isi nama website.');return false}
+  $('ssv').disabled=true;
+  try{
+    let logo=limg||'';
+    if(logo.startsWith('data:')){const path='images/logo-'+Date.now()+'.png';await put(path,logo.split(',')[1],'Ganti logo');loc[path]=logo;logo=path}
+    const next={nama:n,judul:$('sj').value.trim()||n,wa:$('sw').value.replace(/\D/g,''),logo};
+    await put('data/settings.json',b64(JSON.stringify(next,null,1)),'Simpan pengaturan');
+    if(S.logo&&S.logo!==logo)del(S.logo).catch(()=>{});
+    S=next;brand(S);fillSet();toast('Pengaturan tersimpan.');
+  }catch(err){toast(err.message)}
+  $('ssv').disabled=false;return false;
+}
+async function init(){
+  S=await readJSON('data/settings.json',{nama:'Toko Saya'});P=await readJSON('data/products.json',[]);
+  brand(S);fillSet();renderAll();
+  if(!G.owner)toast('Isi owner dan repo GitHub di js/config.js agar perubahan bisa disimpan.');
+}
+</script>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import{getAuth,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+const auth=getAuth(initializeApp(CFG.firebase));
+onAuthStateChanged(auth,u=>{if(!u){location.replace('login.html');return}
+  $('who').textContent=u.email;document.body.hidden=false;if(!window.inited){window.inited=1;init()}});
+$('out').onclick=()=>signOut(auth);
+</script>
+</body></html>

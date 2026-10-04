@@ -1,13 +1,29 @@
-<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><title>Dashboard</title></head>
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><title>Dashboard</title><style>
+.fbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.two2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.cbar{height:6px;background:var(--soft);border-radius:6px;margin:4px 0 12px;overflow:hidden}
+.cbar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.cbar.in i{background:var(--ok)}.cbar.out i{background:var(--bad)}
+.ponly{display:none}
+@media (max-width:820px){.two2{grid-template-columns:1fr}}
+@media print{.sb,.top,.fbar,.toast,.modal,.noprint{display:none!important}.dash{display:block}.main{padding:0}.ponly{display:block!important;margin-bottom:12px}body{background:#fff;color:#000}.card{break-inside:avoid}}
+</style></head>
 <body hidden data-t="Dashboard">
 <div class="dash">
-<nav class="sb"><div class="logo brand"><i></i></div><a class="on" data-p="ringkasan">Ringkasan</a><a data-p="produk">Produk</a><a data-p="pengaturan">Pengaturan</a></nav>
+<nav class="sb"><div class="logo brand"><i></i></div><a class="on" data-p="ringkasan">Ringkasan</a><a data-p="produk">Produk</a><a data-p="keuangan">Keuangan</a><a data-p="pengaturan">Pengaturan</a></nav>
 <div class="main">
 <div class="top"><h2 id="ptitle">Ringkasan</h2><div class="sp"></div><small id="who" style="color:var(--mute)"></small><a class="btn ghost sm" href="index.html">Lihat toko</a><button class="btn sm" id="out">Keluar</button></div>
 
 <div class="pane on" id="p-ringkasan"><div class="stats" id="stats"></div><div class="card"><h3 style="font-size:17px;margin-bottom:10px">Stok menipis</h3><div id="low"></div></div></div>
 
 <div class="pane" id="p-produk"><div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn" onclick="openP()">Tambah produk</button></div><div class="card scroll" id="t-prods"></div></div>
+
+<div class="pane" id="p-keuangan">
+<div class="fbar"><input type="month" id="fm" onchange="renderF()" style="width:auto" aria-label="Pilih bulan"><button class="btn ghost sm" onclick="$('fm').value='';renderF()">Semua bulan</button><div class="sp"></div><button class="btn ghost sm" onclick="csv()">Unduh CSV</button><button class="btn ghost sm" onclick="print()">Cetak / PDF</button><button class="btn" onclick="openT()">Tambah transaksi</button></div>
+<h2 class="ponly" id="ptl"></h2>
+<div class="stats" id="fstats"></div>
+<div class="two2"><div class="card"><h3 style="font-size:17px;margin-bottom:12px">Pemasukan per kategori</h3><div id="gin"></div></div><div class="card"><h3 style="font-size:17px;margin-bottom:12px">Pengeluaran per kategori</h3><div id="gout"></div></div></div>
+<div class="card scroll" id="ftab" style="margin-top:14px"></div></div>
 
 <div class="pane" id="p-pengaturan"><form class="card set" id="sf" onsubmit="return saveSet(event)" novalidate>
 <h3 style="font-size:18px">Identitas website</h3>
@@ -33,6 +49,15 @@
 <label for="pd">Keterangan</label><textarea id="pd" rows="3" placeholder="Bahan, ukuran, atau cerita singkat produk"></textarea>
 <div class="err" id="perr" role="alert"></div>
 <div style="display:flex;gap:10px;justify-content:flex-end"><button type="button" class="btn ghost" onclick="closeP()">Batal</button><button class="btn" id="psv">Simpan produk</button></div>
+</form></div>
+<div class="modal" id="tm" role="dialog" aria-modal="true" aria-labelledby="tmt">
+<form class="card" onsubmit="return saveT(event)" novalidate>
+<h3 id="tmt" style="font-size:20px">Tambah transaksi</h3>
+<div class="row3" style="grid-template-columns:1fr 1fr"><div><label for="tt">Jenis</label><select id="tt"><option value="in">Pemasukan</option><option value="out">Pengeluaran</option></select></div><div><label for="td">Tanggal</label><input id="td" type="date"></div></div>
+<div class="row3" style="grid-template-columns:1fr 1fr"><div><label for="tc">Kategori</label><input id="tc" list="tcl" placeholder="Contoh: Penjualan"><datalist id="tcl"><option value="Penjualan"><option value="Bahan baku"><option value="Operasional"><option value="Gaji"><option value="Transportasi"><option value="Lainnya"></datalist></div><div><label for="tj">Jumlah (Rp)</label><input id="tj" type="number" min="1" inputmode="numeric"></div></div>
+<label for="tn">Keterangan</label><input id="tn" placeholder="Catatan singkat (opsional)">
+<div class="err" id="terr" role="alert"></div>
+<div style="display:flex;gap:10px;justify-content:flex-end"><button type="button" class="btn ghost" onclick="closeT()">Batal</button><button class="btn" id="tsv">Simpan</button></div>
 </form></div>
 <div class="toast" id="toast" role="status"></div>
 
@@ -137,16 +162,66 @@ async function saveSet(e){
   }catch(err){toast(err.message)}
   $('ssv').disabled=false;return false;
 }
+/* ---- Keuangan (Firestore) ---- */
+let T=[],tid=null;
+const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const fd=d=>new Date(d+'T00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+const sumT=(L,tp)=>L.filter(t=>t.tipe===tp).reduce((a,t)=>a+t.jml,0);
+function filt(){const m=$('fm').value;return T.filter(t=>!m||t.tgl.startsWith(m)).sort((a,b)=>b.tgl.localeCompare(a.tgl)||(b.dibuat||0)-(a.dibuat||0))}
+async function loadT(){
+  try{T=await FB.list()}catch(e){T=[];toast('Data keuangan belum bisa dimuat. Periksa aturan Firestore (lihat README).')}
+  renderF();
+}
+function renderF(){
+  const m=$('fm').value,L=filt(),inn=sumT(L,'in'),out=sumT(L,'out'),net=inn-out;
+  $('ptl').textContent='Laporan Keuangan — '+(S.nama||'')+' — '+(m?new Date(m+'-01T00:00').toLocaleDateString('id-ID',{month:'long',year:'numeric'}):'Semua periode');
+  $('fstats').innerHTML=[['Pemasukan',rp(inn),'var(--ok)',L.filter(t=>t.tipe==='in').length+' transaksi'],['Pengeluaran',rp(out),'var(--bad)',L.filter(t=>t.tipe==='out').length+' transaksi'],[net>=0?'Laba bersih':'Rugi',rp(Math.abs(net)),net>=0?'var(--ok)':'var(--bad)','pemasukan dikurangi pengeluaran'],['Transaksi',L.length,'var(--ink)','pada periode ini']].map(x=>`<div class="card stat"><small>${x[0]}</small><b style="color:${x[2]}">${x[1]}</b><span style="color:var(--mute)">${x[3]}</span></div>`).join('');
+  const grp=tp=>{const o={};L.filter(t=>t.tipe===tp).forEach(t=>o[t.kat]=(o[t.kat]||0)+t.jml);const e=Object.entries(o).sort((a,b)=>b[1]-a[1]),mx=e.length?e[0][1]:1;
+    return e.length?e.map(([k,v])=>`<div><div style="display:flex;justify-content:space-between;gap:8px"><span>${esc(k)}</span><b>${rp(v)}</b></div><div class="cbar ${tp}"><i style="width:${v/mx*100}%"></i></div></div>`).join(''):'<p class="empty">Belum ada data.</p>'};
+  $('gin').innerHTML=grp('in');$('gout').innerHTML=grp('out');
+  $('ftab').innerHTML=L.length?'<table><tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Keterangan</th><th style="text-align:right">Jumlah</th><th class="noprint"></th></tr>'+L.map(t=>`<tr><td>${fd(t.tgl)}</td><td><span class="badge ${t.tipe==='in'?'b-ok':'b-bad'}">${t.tipe==='in'?'Pemasukan':'Pengeluaran'}</span></td><td>${esc(t.kat)}</td><td style="white-space:normal;min-width:140px">${esc(t.ket||'-')}</td><td style="text-align:right;font-weight:600;color:var(--${t.tipe==='in'?'ok':'bad'})">${t.tipe==='in'?'+':'−'} ${rp(t.jml)}</td><td class="noprint"><button class="btn ghost sm" onclick="openT('${t.id}')">Ubah</button> <button class="btn ghost sm" onclick="delT('${t.id}')">Hapus</button></td></tr>`).join('')+'</table>':'<p class="empty">Belum ada transaksi pada periode ini. Klik Tambah transaksi untuk mulai mencatat.</p>';
+}
+function openT(id){
+  tid=id||null;const t=id?T.find(x=>x.id===id):{};
+  $('tmt').textContent=id?'Ubah transaksi':'Tambah transaksi';
+  $('tt').value=t.tipe||'in';$('td').value=t.tgl||today();$('tc').value=t.kat||'';$('tj').value=t.jml||'';$('tn').value=t.ket||'';
+  $('terr').textContent='';$('tm').classList.add('on');$('tj').focus();
+}
+function closeT(){$('tm').classList.remove('on')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeT()});
+async function saveT(e){
+  e.preventDefault();
+  const o={tipe:$('tt').value,tgl:$('td').value,kat:$('tc').value.trim()||'Lainnya',ket:$('tn').value.trim(),jml:+$('tj').value};
+  if(!o.tgl||!(o.jml>0)){$('terr').textContent='Isi tanggal dan jumlah di atas 0.';return false}
+  $('tsv').disabled=true;
+  try{if(tid)await FB.upd(tid,o);else{o.dibuat=Date.now();await FB.add(o)}closeT();await loadT();toast('Transaksi tersimpan.')}
+  catch(err){$('terr').textContent='Gagal menyimpan. Periksa aturan Firestore dan koneksi internet.'}
+  $('tsv').disabled=false;return false;
+}
+async function delT(id){
+  if(!confirm('Hapus transaksi ini?'))return;
+  try{await FB.del(id);await loadT();toast('Transaksi dihapus.')}catch(err){toast('Gagal menghapus transaksi.')}
+}
+function csv(){
+  const c=v=>{v=typeof v==='string'&&/^[=+\-@]/.test(v)?"'"+v:v;return '"'+String(v).replace(/"/g,'""')+'"'};
+  const rows=[['Tanggal','Jenis','Kategori','Keterangan','Jumlah']].concat(filt().map(t=>[t.tgl,t.tipe==='in'?'Pemasukan':'Pengeluaran',t.kat,t.ket||'',t.jml]));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+rows.map(r=>r.map(c).join(';')).join('\n')],{type:'text/csv;charset=utf-8'}));
+  a.download='laporan-keuangan-'+($('fm').value||'semua')+'.csv';a.click();
+}
 async function init(){
   S=await readJSON('data/settings.json',{nama:'Toko Saya'});P=await readJSON('data/products.json',[]);
   brand(S);fillSet();renderAll();
+  if(window.FB){$('fm').value=today().slice(0,7);loadT()}
   if(!G.owner)toast('Isi owner dan repo GitHub di js/config.js agar perubahan bisa disimpan.');
 }
 </script>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import{getAuth,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-const auth=getAuth(initializeApp(CFG.firebase));
+import{getFirestore,collection,getDocs,addDoc,updateDoc,deleteDoc,doc}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const app=initializeApp(CFG.firebase),auth=getAuth(app),db=getFirestore(app);
+window.FB={list:async()=>(await getDocs(collection(db,'transaksi'))).docs.map(d=>({id:d.id,...d.data()})),
+ add:o=>addDoc(collection(db,'transaksi'),o),upd:(id,o)=>updateDoc(doc(db,'transaksi',id),o),del:id=>deleteDoc(doc(db,'transaksi',id))};
 onAuthStateChanged(auth,u=>{if(!u){location.replace('login.html');return}
   $('who').textContent=u.email;document.body.hidden=false;if(!window.inited){window.inited=1;init()}});
 $('out').onclick=()=>signOut(auth);
